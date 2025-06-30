@@ -42,17 +42,6 @@ serve(async (req) => {
       throw new Error('Reading not found');
     }
 
-    // Check subscription and video credits
-    const { data: subscription } = await supabaseClient
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!subscription || subscription.videos_remaining <= 0) {
-      throw new Error('No video credits remaining. Please upgrade your subscription.');
-    }
-
     // Create video record
     const { data: video, error: videoError } = await supabaseClient
       .from('videos')
@@ -110,18 +99,6 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('Failed to update video record:', updateError);
-    }
-
-    // Decrement video credits
-    const { error: creditError } = await supabaseClient
-      .from('subscriptions')
-      .update({
-        videos_remaining: subscription.videos_remaining - 1,
-      })
-      .eq('user_id', user.id);
-
-    if (creditError) {
-      console.error('Failed to update video credits:', creditError);
     }
 
     return new Response(JSON.stringify({ 

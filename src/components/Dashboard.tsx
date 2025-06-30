@@ -15,7 +15,6 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
   const [questionnaires, setQuestionnaires] = useState<any[]>([]);
   const [readings, setReadings] = useState<any[]>([]);
   const [videos, setVideos] = useState<any[]>([]);
-  const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
@@ -26,11 +25,10 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
 
   const loadData = async () => {
     try {
-      const [questionnairesRes, readingsRes, videosRes, subscriptionRes] = await Promise.all([
+      const [questionnairesRes, readingsRes, videosRes] = await Promise.all([
         supabase.from('astrology_questionnaires').select('*').order('created_at', { ascending: false }),
         supabase.from('readings').select('*').order('created_at', { ascending: false }),
         supabase.from('videos').select('*').order('created_at', { ascending: false }),
-        supabase.from('subscriptions').select('*').single(),
       ]);
 
       if (questionnairesRes.error) throw questionnairesRes.error;
@@ -40,7 +38,6 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
       setQuestionnaires(questionnairesRes.data || []);
       setReadings(readingsRes.data || []);
       setVideos(videosRes.data || []);
-      setSubscription(subscriptionRes.data);
     } catch (error: any) {
       console.error('Error loading data:', error);
       toast({
@@ -158,35 +155,17 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
           </Button>
         </div>
 
-        {/* Subscription Status */}
-        {subscription && (
-          <Card className="mb-8 bg-white/10 backdrop-blur-sm border-purple-500/30">
-            <CardHeader>
-              <CardTitle className="text-white">Subscription Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-200">
-                    Plan: {subscription.plan_name} (€{(subscription.price_amount / 100).toFixed(2)}/month)
-                  </p>
-                  <p className="text-purple-200">
-                    Videos Remaining: {subscription.videos_remaining}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className={`px-3 py-1 rounded-full text-sm ${
-                    subscription.status === 'active' 
-                      ? 'bg-green-500/20 text-green-300' 
-                      : 'bg-red-500/20 text-red-300'
-                  }`}>
-                    {subscription.status}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Free Video Generation Notice */}
+        <Card className="mb-8 bg-green-500/10 backdrop-blur-sm border-green-500/30">
+          <CardHeader>
+            <CardTitle className="text-green-300">🎉 Free Video Generation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-green-200">
+              Video generation is currently free for testing! Click "Create Video" on any reading to generate your personalized AI avatar video.
+            </p>
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Questionnaires */}
@@ -273,7 +252,7 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
                         {!video && (
                           <Button
                             onClick={() => generateVideo(reading.id)}
-                            disabled={generating || !subscription || subscription.videos_remaining <= 0}
+                            disabled={generating}
                             size="sm"
                             className="bg-gradient-to-r from-blue-600 to-purple-600"
                           >
