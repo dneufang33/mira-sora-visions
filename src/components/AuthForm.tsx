@@ -24,12 +24,15 @@ const AuthForm = ({ onAuthSuccess }: AuthFormProps) => {
     setLoading(true);
 
     try {
+      console.log('Auth attempt:', isLogin ? 'login' : 'signup', email);
+      
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
+        console.log('Login successful');
         toast({
           title: "Welcome back!",
           description: "You have successfully signed in.",
@@ -46,6 +49,7 @@ const AuthForm = ({ onAuthSuccess }: AuthFormProps) => {
           },
         });
         if (error) throw error;
+        console.log('Signup successful');
         toast({
           title: "Account created!",
           description: "Please check your email for verification.",
@@ -53,6 +57,7 @@ const AuthForm = ({ onAuthSuccess }: AuthFormProps) => {
       }
       onAuthSuccess();
     } catch (error: any) {
+      console.error('Auth error:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -61,6 +66,14 @@ const AuthForm = ({ onAuthSuccess }: AuthFormProps) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleAuthMode = () => {
+    console.log('Toggling auth mode from', isLogin ? 'login' : 'signup', 'to', !isLogin ? 'login' : 'signup');
+    setIsLogin(!isLogin);
+    setEmail('');
+    setPassword('');
+    setFullName('');
   };
 
   return (
@@ -123,7 +136,8 @@ const AuthForm = ({ onAuthSuccess }: AuthFormProps) => {
         </form>
         <div className="mt-4 text-center">
           <button
-            onClick={() => setIsLogin(!isLogin)}
+            type="button"
+            onClick={toggleAuthMode}
             className="text-purple-300 hover:text-purple-200 underline"
           >
             {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}

@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface QuestionnaireFormProps {
-  onComplete: (questionnaireId: string) => void;
+  onComplete: () => void;
 }
 
 const QuestionnaireForm = ({ onComplete }: QuestionnaireFormProps) => {
@@ -51,8 +51,9 @@ const QuestionnaireForm = ({ onComplete }: QuestionnaireFormProps) => {
         description: "Your cosmic profile has been created successfully.",
       });
       
-      onComplete(data.id);
+      onComplete();
     } catch (error: any) {
+      console.error('Questionnaire submission error:', error);
       toast({
         title: "Error",
         description: error.message,

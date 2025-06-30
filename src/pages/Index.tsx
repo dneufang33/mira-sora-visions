@@ -16,20 +16,25 @@ const Index = () => {
   const [hasQuestionnaire, setHasQuestionnaire] = useState(false);
 
   useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    console.log('Setting up auth listeners...');
+    
+    // Listen for auth changes first
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth state changed:', _event, session?.user?.email);
       setUser(session?.user ?? null);
       if (session?.user) {
         checkUserQuestionnaire(session.user.id);
       } else {
         setAppState('landing');
+        setHasQuestionnaire(false);
       }
     });
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email);
       setUser(session?.user ?? null);
       if (session?.user) {
         checkUserQuestionnaire(session.user.id);
@@ -43,15 +48,20 @@ const Index = () => {
 
   const checkUserQuestionnaire = async (userId: string) => {
     try {
+      console.log('Checking questionnaire for user:', userId);
       const { data, error } = await supabase
         .from('astrology_questionnaires')
         .select('id')
         .eq('user_id', userId)
         .limit(1);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error checking questionnaire:', error);
+        throw error;
+      }
 
       const hasQuestionnaireData = data && data.length > 0;
+      console.log('User has questionnaire:', hasQuestionnaireData);
       setHasQuestionnaire(hasQuestionnaireData);
       setAppState(hasQuestionnaireData ? 'dashboard' : 'questionnaire');
     } catch (error) {
@@ -61,23 +71,28 @@ const Index = () => {
   };
 
   const handleAuthSuccess = () => {
-    // Auth state change will be handled by the listener
+    console.log('Auth success - state will be handled by auth listener');
   };
 
   const handleQuestionnaireComplete = () => {
+    console.log('Questionnaire completed');
     setHasQuestionnaire(true);
     setAppState('dashboard');
   };
 
   const handleSignOut = async () => {
+    console.log('Signing out...');
     await supabase.auth.signOut();
     setHasQuestionnaire(false);
     setAppState('landing');
   };
 
   const handleGetStarted = () => {
+    console.log('Get started clicked');
     setAppState('auth');
   };
+
+  console.log('Current app state:', appState, 'User:', user?.email, 'Has questionnaire:', hasQuestionnaire);
 
   if (appState === 'loading') {
     return (
