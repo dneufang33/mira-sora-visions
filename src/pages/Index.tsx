@@ -1,110 +1,135 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Star, Moon, Zap } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { supabase } from "@/integrations/supabase/client";
 import HeroSection from "@/components/HeroSection";
 import ZodiacWheel from "@/components/ZodiacWheel";
 import PricingSection from "@/components/PricingSection";
+import AuthForm from "@/components/AuthForm";
+import QuestionnaireForm from "@/components/QuestionnaireForm";
+import Dashboard from "@/components/Dashboard";
+
+type AppState = 'loading' | 'landing' | 'auth' | 'questionnaire' | 'dashboard';
 
 const Index = () => {
+  const [user, setUser] = useState<any>(null);
+  const [appState, setAppState] = useState<AppState>('loading');
+  const [hasQuestionnaire, setHasQuestionnaire] = useState(false);
+
+  useEffect(() => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        checkUserQuestionnaire(session.user.id);
+      } else {
+        setAppState('landing');
+      }
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        checkUserQuestionnaire(session.user.id);
+      } else {
+        setAppState('landing');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkUserQuestionnaire = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('astrology_questionnaires')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1);
+
+      if (error) throw error;
+
+      const hasQuestionnaireData = data && data.length > 0;
+      setHasQuestionnaire(hasQuestionnaireData);
+      setAppState(hasQuestionnaireData ? 'dashboard' : 'questionnaire');
+    } catch (error) {
+      console.error('Error checking questionnaire:', error);
+      setAppState('questionnaire');
+    }
+  };
+
+  const handleAuthSuccess = () => {
+    // Auth state change will be handled by the listener
+  };
+
+  const handleQuestionnaireComplete = () => {
+    setHasQuestionnaire(true);
+    setAppState('dashboard');
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setHasQuestionnaire(false);
+    setAppState('landing');
+  };
+
+  const handleGetStarted = () => {
+    setAppState('auth');
+  };
+
+  if (appState === 'loading') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900">
-      {/* Animated stars background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {[...Array(50)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute animate-pulse"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 2}s`
-            }}
-          >
-            <Star className="w-1 h-1 text-white/30 fill-current" />
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      {appState === 'landing' && (
+        <>
+          <HeroSection />
+          <div className="flex justify-center pb-8">
+            <button
+              onClick={handleGetStarted}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 rounded-full font-medium tracking-wide transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-purple-500/25"
+            >
+              Get Started
+            </button>
           </div>
-        ))}
-      </div>
+          <ZodiacWheel />
+          <PricingSection />
+        </>
+      )}
 
-      <div className="relative z-10">
-        <HeroSection />
-        
-        {/* Features Section */}
-        <section className="py-20 px-4">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-white mb-4 font-serif">
-                Unlock the Mysteries of Your Destiny
-              </h2>
-              <p className="text-purple-200 text-lg max-w-2xl mx-auto">
-                Experience personalized cosmic guidance through the ancient wisdom of astrology, 
-                channeled by Mira's ethereal presence.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              <Card className="bg-white/10 backdrop-blur-sm border-purple-500/30 text-white">
-                <CardHeader className="text-center">
-                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center mb-4">
-                    <Star className="w-8 h-8 text-white" />
-                  </div>
-                  <CardTitle className="text-xl font-serif">Daily Insights</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-purple-200 text-center">
-                    Receive daily cosmic guidance tailored to your unique astrological profile and current planetary alignments.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/10 backdrop-blur-sm border-purple-500/30 text-white">
-                <CardHeader className="text-center">
-                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-blue-400 to-purple-400 rounded-full flex items-center justify-center mb-4">
-                    <Moon className="w-8 h-8 text-white" />
-                  </div>
-                  <CardTitle className="text-xl font-serif">Lunar Wisdom</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-purple-200 text-center">
-                    Harness the power of lunar cycles with moon phase insights and rituals to enhance your spiritual journey.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/10 backdrop-blur-sm border-purple-500/30 text-white">
-                <CardHeader className="text-center">
-                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-pink-400 to-purple-400 rounded-full flex items-center justify-center mb-4">
-                    <Zap className="w-8 h-8 text-white" />
-                  </div>
-                  <CardTitle className="text-xl font-serif">AI Oracle</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-purple-200 text-center">
-                    Experience the fusion of ancient wisdom and modern AI as Mira channels cosmic energies into personalized guidance.
-                  </CardDescription>
-                </CardContent>
-              </Card>
+      {appState === 'auth' && (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="w-full max-w-md">
+            <AuthForm onAuthSuccess={handleAuthSuccess} />
+            <div className="text-center mt-4">
+              <button
+                onClick={() => setAppState('landing')}
+                className="text-purple-300 hover:text-purple-200 underline"
+              >
+                Back to Home
+              </button>
             </div>
           </div>
-        </section>
+        </div>
+      )}
 
-        <ZodiacWheel />
-        <PricingSection />
+      {appState === 'questionnaire' && user && (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <QuestionnaireForm onComplete={handleQuestionnaireComplete} />
+        </div>
+      )}
 
-        {/* Footer */}
-        <footer className="py-12 px-4 border-t border-purple-500/30">
-          <div className="max-w-4xl mx-auto text-center">
-            <p className="text-purple-300 font-serif">
-              "The stars align for those who seek wisdom in the cosmic dance of destiny."
-            </p>
-            <p className="text-purple-400 mt-4 text-sm">
-              © 2024 Mira Sora Visions. All rights reserved.
-            </p>
-          </div>
-        </footer>
-      </div>
+      {appState === 'dashboard' && user && (
+        <Dashboard user={user} onSignOut={handleSignOut} />
+      )}
     </div>
   );
 };
