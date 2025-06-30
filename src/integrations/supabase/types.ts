@@ -9,7 +9,196 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      astrology_questionnaires: {
+        Row: {
+          additional_info: Json | null
+          birth_date: string
+          birth_place: string
+          birth_time: string | null
+          created_at: string
+          id: string
+          life_goals: string | null
+          personality_traits: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          additional_info?: Json | null
+          birth_date: string
+          birth_place: string
+          birth_time?: string | null
+          created_at?: string
+          id?: string
+          life_goals?: string | null
+          personality_traits?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          additional_info?: Json | null
+          birth_date?: string
+          birth_place?: string
+          birth_time?: string | null
+          created_at?: string
+          id?: string
+          life_goals?: string | null
+          personality_traits?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      readings: {
+        Row: {
+          created_at: string
+          generated_text: string
+          id: string
+          openai_prompt: string | null
+          questionnaire_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          generated_text: string
+          id?: string
+          openai_prompt?: string | null
+          questionnaire_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          generated_text?: string
+          id?: string
+          openai_prompt?: string | null
+          questionnaire_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "readings_questionnaire_id_fkey"
+            columns: ["questionnaire_id"]
+            isOneToOne: false
+            referencedRelation: "astrology_questionnaires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          billing_cycle_end: string | null
+          billing_cycle_start: string | null
+          created_at: string
+          id: string
+          plan_name: string | null
+          price_amount: number | null
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+          videos_remaining: number | null
+        }
+        Insert: {
+          billing_cycle_end?: string | null
+          billing_cycle_start?: string | null
+          created_at?: string
+          id?: string
+          plan_name?: string | null
+          price_amount?: number | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+          videos_remaining?: number | null
+        }
+        Update: {
+          billing_cycle_end?: string | null
+          billing_cycle_start?: string | null
+          created_at?: string
+          id?: string
+          plan_name?: string | null
+          price_amount?: number | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+          videos_remaining?: number | null
+        }
+        Relationships: []
+      }
+      videos: {
+        Row: {
+          avatar_id: string | null
+          completed_at: string | null
+          created_at: string
+          did_video_id: string | null
+          duration: number | null
+          id: string
+          reading_id: string
+          status: string | null
+          user_id: string
+          video_url: string | null
+        }
+        Insert: {
+          avatar_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          did_video_id?: string | null
+          duration?: number | null
+          id?: string
+          reading_id: string
+          status?: string | null
+          user_id: string
+          video_url?: string | null
+        }
+        Update: {
+          avatar_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          did_video_id?: string | null
+          duration?: number | null
+          id?: string
+          reading_id?: string
+          status?: string | null
+          user_id?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "videos_reading_id_fkey"
+            columns: ["reading_id"]
+            isOneToOne: false
+            referencedRelation: "readings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
