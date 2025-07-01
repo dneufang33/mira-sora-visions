@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Video, Clock, CheckCircle } from 'lucide-react';
+import { Sparkles, Volume2, Clock, CheckCircle, Play } from 'lucide-react';
 
 interface DashboardProps {
   user: any;
@@ -14,7 +14,7 @@ interface DashboardProps {
 const Dashboard = ({ user, onSignOut }: DashboardProps) => {
   const [questionnaires, setQuestionnaires] = useState<any[]>([]);
   const [readings, setReadings] = useState<any[]>([]);
-  const [videos, setVideos] = useState<any[]>([]);
+  const [audioReadings, setAudioReadings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
@@ -25,19 +25,19 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
 
   const loadData = async () => {
     try {
-      const [questionnairesRes, readingsRes, videosRes] = await Promise.all([
+      const [questionnairesRes, readingsRes, audioRes] = await Promise.all([
         supabase.from('astrology_questionnaires').select('*').order('created_at', { ascending: false }),
         supabase.from('readings').select('*').order('created_at', { ascending: false }),
-        supabase.from('videos').select('*').order('created_at', { ascending: false }),
+        supabase.from('audio_readings').select('*').order('created_at', { ascending: false }),
       ]);
 
       if (questionnairesRes.error) throw questionnairesRes.error;
       if (readingsRes.error) throw readingsRes.error;
-      if (videosRes.error) throw videosRes.error;
+      if (audioRes.error) throw audioRes.error;
 
       setQuestionnaires(questionnairesRes.data || []);
       setReadings(readingsRes.data || []);
-      setVideos(videosRes.data || []);
+      setAudioReadings(audioRes.data || []);
     } catch (error: any) {
       console.error('Error loading data:', error);
       toast({
@@ -76,24 +76,24 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
     }
   };
 
-  const generateVideo = async (readingId: string) => {
+  const generateAudio = async (readingId: string) => {
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-video', {
+      const { data, error } = await supabase.functions.invoke('generate-audio', {
         body: { readingId }
       });
 
       if (error) throw error;
 
       toast({
-        title: "Video generation started!",
-        description: "Your avatar video is being created. This may take a few minutes.",
+        title: "Audio generation started!",
+        description: "Your voice reading is being created by Mira.",
       });
 
       await loadData();
     } catch (error: any) {
       toast({
-        title: "Error generating video",
+        title: "Error generating audio",
         description: error.message,
         variant: "destructive",
       });
@@ -102,29 +102,15 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
     }
   };
 
-  const checkVideoStatus = async (videoId: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('check-video-status', {
-        body: { videoId }
-      });
-
-      if (error) throw error;
-
-      await loadData();
-
-      if (data.status === 'done') {
-        toast({
-          title: "Video ready!",
-          description: "Your astrology video has been completed.",
-        });
-      }
-    } catch (error: any) {
+  const playAudio = (audioUrl: string) => {
+    const audio = new Audio(audioUrl);
+    audio.play().catch(error => {
       toast({
-        title: "Error checking video status",
-        description: error.message,
+        title: "Error playing audio",
+        description: "Could not play the audio file",
         variant: "destructive",
       });
-    }
+    });
   };
 
   if (loading) {
@@ -155,14 +141,14 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
           </Button>
         </div>
 
-        {/* Free Video Generation Notice */}
+        {/* Free Audio Generation Notice */}
         <Card className="mb-8 bg-green-500/10 backdrop-blur-sm border-green-500/30">
           <CardHeader>
-            <CardTitle className="text-green-300">🎉 Free Video Generation</CardTitle>
+            <CardTitle className="text-green-300">🎉 Free Voice Readings by Mira</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-green-200">
-              Video generation is currently free for testing! Click "Create Video" on any reading to generate your personalized AI avatar video.
+              Get your personalized astrology readings narrated by Mira, your AI astral guide! Click "Generate Voice Reading" to hear your cosmic guidance.
             </p>
           </CardContent>
         </Card>
@@ -223,20 +209,20 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
             </CardContent>
           </Card>
 
-          {/* Videos */}
+          {/* Audio Readings */}
           <Card className="bg-white/10 backdrop-blur-sm border-purple-500/30">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
-                <Video className="w-5 h-5" />
-                Your Astrology Videos
+                <Volume2 className="w-5 h-5" />
+                Your Voice Readings
               </CardTitle>
               <CardDescription className="text-purple-200">
-                AI-generated avatar videos with your readings
+                AI-narrated astrology readings by Mira
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {readings.map((reading) => {
-                const video = videos.find(v => v.reading_id === reading.id);
+                const audio = audioReadings.find(a => a.reading_id === reading.id);
                 return (
                   <div key={reading.id} className="p-4 bg-white/5 rounded-lg">
                     <div className="flex justify-between items-start mb-2">
@@ -249,48 +235,49 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
                         </p>
                       </div>
                       <div className="ml-4">
-                        {!video && (
+                        {!audio && (
                           <Button
-                            onClick={() => generateVideo(reading.id)}
+                            onClick={() => generateAudio(reading.id)}
                             disabled={generating}
                             size="sm"
                             className="bg-gradient-to-r from-blue-600 to-purple-600"
                           >
-                            {generating ? 'Creating...' : 'Create Video'}
+                            {generating ? 'Creating...' : 'Generate Voice Reading'}
                           </Button>
                         )}
-                        {video && video.status === 'processing' && (
+                        {audio && audio.status === 'processing' && (
                           <Button
-                            onClick={() => checkVideoStatus(video.id)}
+                            disabled
                             size="sm"
                             variant="outline"
                             className="border-yellow-500 text-yellow-300"
                           >
                             <Clock className="w-4 h-4 mr-1" />
-                            Check Status
+                            Processing...
                           </Button>
                         )}
-                        {video && video.status === 'done' && video.video_url && (
+                        {audio && audio.status === 'completed' && audio.audio_url && (
                           <Button
-                            onClick={() => window.open(video.video_url, '_blank')}
+                            onClick={() => playAudio(audio.audio_url)}
                             size="sm"
                             className="bg-gradient-to-r from-green-600 to-blue-600"
                           >
-                            Watch Video
+                            <Play className="w-4 h-4 mr-1" />
+                            Play Reading
                           </Button>
                         )}
                       </div>
                     </div>
-                    {video && (
+                    {audio && (
                       <div className="mt-2">
                         <span className={`px-2 py-1 rounded-full text-xs ${
-                          video.status === 'done' 
+                          audio.status === 'completed' 
                             ? 'bg-green-500/20 text-green-300'
-                            : video.status === 'processing'
+                            : audio.status === 'processing'
                             ? 'bg-yellow-500/20 text-yellow-300'
                             : 'bg-red-500/20 text-red-300'
                         }`}>
-                          {video.status}
+                          {audio.status}
                         </span>
                       </div>
                     )}
@@ -299,7 +286,7 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
               })}
               {readings.length === 0 && (
                 <p className="text-purple-300 text-center py-4">
-                  No readings yet. Generate your first reading to create videos!
+                  No readings yet. Generate your first reading to create voice narrations!
                 </p>
               )}
             </CardContent>
