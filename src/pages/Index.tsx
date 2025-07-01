@@ -8,7 +8,7 @@ import AuthForm from "@/components/AuthForm";
 import QuestionnaireForm from "@/components/QuestionnaireForm";
 import Dashboard from "@/components/Dashboard";
 
-type AppState = 'loading' | 'landing' | 'auth' | 'questionnaire' | 'dashboard';
+type AppState = 'loading' | 'landing' | 'questionnaire' | 'auth' | 'dashboard';
 
 const Index = () => {
   const [user, setUser] = useState<any>(null);
@@ -87,9 +87,32 @@ const Index = () => {
     setAppState('landing');
   };
 
-  const handleGetStarted = () => {
-    console.log('Get started clicked');
-    setAppState('auth');
+  // New flow: Always start with questionnaire for non-authenticated users
+  const handleStartJourney = () => {
+    console.log('Starting journey - going to questionnaire first');
+    if (user) {
+      // If user is already authenticated, check if they have questionnaire
+      if (hasQuestionnaire) {
+        setAppState('dashboard');
+      } else {
+        setAppState('questionnaire');
+      }
+    } else {
+      // Non-authenticated users start with questionnaire
+      setAppState('questionnaire');
+    }
+  };
+
+  // After questionnaire, redirect to auth if not authenticated
+  const handleQuestionnaireCompleteOrNext = () => {
+    if (user) {
+      // User is authenticated, complete questionnaire and go to dashboard
+      handleQuestionnaireComplete();
+    } else {
+      // User not authenticated, go to auth after questionnaire
+      console.log('Questionnaire attempted without auth - redirecting to signup');
+      setAppState('auth');
+    }
   };
 
   console.log('Current app state:', appState, 'User:', user?.email, 'Has questionnaire:', hasQuestionnaire);
@@ -106,18 +129,26 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {appState === 'landing' && (
         <>
-          <HeroSection />
-          <div className="flex justify-center pb-8">
-            <button
-              onClick={handleGetStarted}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 rounded-full font-medium tracking-wide transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-purple-500/25"
-            >
-              Get Started
-            </button>
-          </div>
+          <HeroSection onStartJourney={handleStartJourney} />
           <ZodiacWheel />
           <PricingSection />
         </>
+      )}
+
+      {appState === 'questionnaire' && (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl">
+            <QuestionnaireForm onComplete={handleQuestionnaireCompleteOrNext} />
+            <div className="text-center mt-4">
+              <button
+                onClick={() => setAppState('landing')}
+                className="text-purple-300 hover:text-purple-200 underline"
+              >
+                Back to Home
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {appState === 'auth' && (
@@ -133,12 +164,6 @@ const Index = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {appState === 'questionnaire' && user && (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <QuestionnaireForm onComplete={handleQuestionnaireComplete} />
         </div>
       )}
 

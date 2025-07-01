@@ -29,8 +29,21 @@ const QuestionnaireForm = ({ onComplete }: QuestionnaireFormProps) => {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      
+      if (!user) {
+        // User not authenticated - store data temporarily and proceed to auth
+        console.log('User not authenticated, storing questionnaire data temporarily');
+        // Store in localStorage temporarily
+        localStorage.setItem('pendingQuestionnaire', JSON.stringify(formData));
+        toast({
+          title: "Information saved!",
+          description: "Please create an account to complete your cosmic profile.",
+        });
+        onComplete();
+        return;
+      }
 
+      // User is authenticated - save to database
       const { data, error } = await supabase
         .from('astrology_questionnaires')
         .insert({
