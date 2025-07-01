@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +27,8 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
       const [questionnairesRes, readingsRes, audioRes] = await Promise.all([
         supabase.from('astrology_questionnaires').select('*').order('created_at', { ascending: false }),
         supabase.from('readings').select('*').order('created_at', { ascending: false }),
-        supabase.from('audio_readings').select('*').order('created_at', { ascending: false }),
+        // Cast to any to bypass TypeScript error for audio_readings table
+        (supabase as any).from('audio_readings').select('*').order('created_at', { ascending: false }),
       ]);
 
       if (questionnairesRes.error) throw questionnairesRes.error;

@@ -48,6 +48,44 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_readings: {
+        Row: {
+          audio_url: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          reading_id: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          audio_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          reading_id: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          audio_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          reading_id?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_readings_reading_id_fkey"
+            columns: ["reading_id"]
+            isOneToOne: false
+            referencedRelation: "readings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
