@@ -25,9 +25,9 @@ const PDFGenerator = ({ reading, disabled, onExport }: PDFGeneratorProps) => {
       const maxWidth = pageWidth - (margin * 2);
       
       // Set up colors matching Mira's theme
-      const primaryColor = [139, 69, 193]; // Purple
-      const textColor = [51, 51, 51]; // Dark gray
-      const accentColor = [236, 72, 153]; // Pink
+      const primaryColor = [139, 69, 193] as const; // Purple
+      const textColor = [51, 51, 51] as const; // Dark gray
+      const accentColor = [236, 72, 153] as const; // Pink
       
       // Add header with Mira branding
       pdf.setFillColor(139, 69, 193);
@@ -43,18 +43,18 @@ const PDFGenerator = ({ reading, disabled, onExport }: PDFGeneratorProps) => {
       pdf.text('Your AI Astral Guide', margin, 35);
       
       // Add reading title
-      pdf.setTextColor(...textColor);
+      pdf.setTextColor(textColor[0], textColor[1], textColor[2]);
       pdf.setFontSize(18);
       const readingDate = new Date(reading.created_at).toLocaleDateString();
       pdf.text(`Cosmic Reading - ${readingDate}`, margin, 60);
       
       // Add decorative line
-      pdf.setDrawColor(...accentColor);
+      pdf.setDrawColor(accentColor[0], accentColor[1], accentColor[2]);
       pdf.setLineWidth(2);
       pdf.line(margin, 70, pageWidth - margin, 70);
       
       // Add reading content
-      pdf.setTextColor(...textColor);
+      pdf.setTextColor(textColor[0], textColor[1], textColor[2]);
       pdf.setFontSize(11);
       
       // Split text into lines that fit the page width

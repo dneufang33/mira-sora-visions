@@ -48,7 +48,7 @@ const PricingSection = ({ onStartJourney }: PricingSectionProps) => {
             </CardHeader>
             <CardContent className="relative z-10">
               <ul className="space-y-3 mb-6">
-                {t('pricing.writtenReadings.features', { returnObjects: true }).map((feature: string, index: number) => (
+                {(t('pricing.writtenReadings.features', { returnObjects: true }) as string[]).map((feature: string, index: number) => (
                   <li key={index} className="flex items-center text-purple-200">
                     <div className="w-2 h-2 bg-purple-400 rounded-full mr-3"></div>
                     {feature}
@@ -91,7 +91,7 @@ const PricingSection = ({ onStartJourney }: PricingSectionProps) => {
             </CardHeader>
             <CardContent className="relative z-10">
               <ul className="space-y-3 mb-6">
-                {t('pricing.spokenReadings.features', { returnObjects: true }).map((feature: string, index: number) => (
+                {(t('pricing.spokenReadings.features', { returnObjects: true }) as string[]).map((feature: string, index: number) => (
                   <li key={index} className="flex items-center text-purple-200">
                     <div className="w-2 h-2 bg-blue-400 rounded-full mr-3"></div>
                     {feature}
