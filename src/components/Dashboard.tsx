@@ -1,11 +1,14 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Volume2, Clock, CheckCircle, Play } from 'lucide-react';
+import { Sparkles, Volume2, Clock, CheckCircle, Play, CreditCard } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import PDFGenerator from './PDFGenerator';
+import PaymentGate from './PaymentGate';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface DashboardProps {
   user: any;
@@ -20,7 +23,10 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [exportingPDF, setExportingPDF] = useState<string | null>(null);
+  const [showPaymentGate, setShowPaymentGate] = useState<{ show: boolean; type: 'pdf' | 'audio' }>({ show: false, type: 'pdf' });
   const { toast } = useToast();
+  
+  const { subscription, loading: subLoading, checkSubscription, decrementReading, createCheckout } = useSubscription(user);
 
   useEffect(() => {
     loadData();
@@ -31,7 +37,6 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
       const [questionnairesRes, readingsRes, audioRes] = await Promise.all([
         supabase.from('astrology_questionnaires').select('*').order('created_at', { ascending: false }),
         supabase.from('readings').select('*').order('created_at', { ascending: false }),
-        // Cast to any to bypass TypeScript error for audio_readings table
         (supabase as any).from('audio_readings').select('*').order('created_at', { ascending: false }),
       ]);
 
@@ -81,6 +86,11 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
   };
 
   const generateAudio = async (readingId: string) => {
+    if (!subscription.subscribed || subscription.readings_remaining <= 0) {
+      setShowPaymentGate({ show: true, type: 'audio' });
+      return;
+    }
+
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-audio', {
@@ -89,12 +99,14 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
 
       if (error) throw error;
 
+      await decrementReading();
       toast({
         title: "Audio generation started!",
         description: "Your voice reading is being created by Mira.",
       });
 
       await loadData();
+      await checkSubscription();
     } catch (error: any) {
       toast({
         title: "Error generating audio",
@@ -117,12 +129,24 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
     });
   };
 
-  const handlePDFExport = (readingId: string) => {
+  const handlePDFExport = async (readingId: string) => {
+    if (!subscription.subscribed || subscription.readings_remaining <= 0) {
+      setShowPaymentGate({ show: true, type: 'pdf' });
+      return;
+    }
+
     setExportingPDF(readingId);
-    setTimeout(() => setExportingPDF(null), 2000); // Reset after 2 seconds
+    await decrementReading();
+    await checkSubscription();
+    setTimeout(() => setExportingPDF(null), 2000);
   };
 
-  if (loading) {
+  const handleUpgrade = (tier: 'written' | 'spoken') => {
+    setShowPaymentGate({ show: false, type: 'pdf' });
+    createCheckout(tier);
+  };
+
+  if (loading || subLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-white text-lg">Loading your cosmic dashboard...</div>
@@ -150,15 +174,37 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
           </Button>
         </div>
 
-        {/* Free Audio Generation Notice */}
-        <Card className="mb-8 bg-green-500/10 backdrop-blur-sm border-green-500/30">
+        {/* Subscription Status */}
+        <Card className="mb-8 bg-white/10 backdrop-blur-sm border-purple-500/30">
           <CardHeader>
-            <CardTitle className="text-green-300">{t('dashboard.freeAudioTitle')}</CardTitle>
+            <CardTitle className="text-white flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              Subscription Status
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-green-200">
-              {t('dashboard.freeAudioDescription')}
-            </p>
+            {subscription.subscribed ? (
+              <div className="space-y-2">
+                <p className="text-green-300">
+                  ✓ Active {subscription.subscription_tier} subscription
+                </p>
+                <p className="text-purple-200">
+                  Readings remaining this month: {subscription.readings_remaining}
+                </p>
+                {subscription.subscription_end && (
+                  <p className="text-purple-300 text-sm">
+                    Renews on: {new Date(subscription.subscription_end).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-yellow-300">No active subscription</p>
+                <p className="text-purple-200 text-sm">
+                  Subscribe to unlock PDF exports and audio readings
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -306,6 +352,13 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
             </CardContent>
           </Card>
         </div>
+
+        {showPaymentGate.show && (
+          <PaymentGate
+            type={showPaymentGate.type}
+            onUpgrade={handleUpgrade}
+          />
+        )}
       </div>
     </div>
   );

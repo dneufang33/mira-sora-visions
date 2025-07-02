@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import HeroSection from "@/components/HeroSection";
@@ -7,6 +8,7 @@ import AuthForm from "@/components/AuthForm";
 import QuestionnaireForm from "@/components/QuestionnaireForm";
 import Dashboard from "@/components/Dashboard";
 import LanguageToggle from "@/components/LanguageToggle";
+import LoginButton from "@/components/LoginButton";
 
 type AppState = 'loading' | 'landing' | 'questionnaire' | 'auth' | 'dashboard';
 
@@ -14,11 +16,11 @@ const Index = () => {
   const [user, setUser] = useState<any>(null);
   const [appState, setAppState] = useState<AppState>('loading');
   const [hasQuestionnaire, setHasQuestionnaire] = useState(false);
+  const [questionnaireData, setQuestionnaireData] = useState<any>(null);
 
   useEffect(() => {
     console.log('Setting up auth listeners...');
     
-    // Listen for auth changes first
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -32,7 +34,6 @@ const Index = () => {
       }
     });
 
-    // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session check:', session?.user?.email);
       setUser(session?.user ?? null);
@@ -51,7 +52,7 @@ const Index = () => {
       console.log('Checking questionnaire for user:', userId);
       const { data, error } = await supabase
         .from('astrology_questionnaires')
-        .select('id')
+        .select('*')
         .eq('user_id', userId)
         .limit(1);
 
@@ -63,10 +64,10 @@ const Index = () => {
       const hasQuestionnaireData = data && data.length > 0;
       console.log('User has questionnaire:', hasQuestionnaireData);
       setHasQuestionnaire(hasQuestionnaireData);
-      setAppState(hasQuestionnaireData ? 'dashboard' : 'questionnaire');
+      setAppState('dashboard');
     } catch (error) {
       console.error('Error checking questionnaire:', error);
-      setAppState('questionnaire');
+      setAppState('dashboard');
     }
   };
 
@@ -74,45 +75,84 @@ const Index = () => {
     console.log('Auth success - state will be handled by auth listener');
   };
 
-  const handleQuestionnaireComplete = () => {
-    console.log('Questionnaire completed');
-    setHasQuestionnaire(true);
-    setAppState('dashboard');
+  const handleQuestionnaireComplete = async (data: any) => {
+    console.log('Questionnaire completed with data:', data);
+    setQuestionnaireData(data);
+    
+    if (user) {
+      // User is already authenticated, save questionnaire and go to dashboard
+      try {
+        const { error } = await supabase
+          .from('astrology_questionnaires')
+          .insert({
+            user_id: user.id,
+            birth_date: data.birthDate,
+            birth_time: data.birthTime,
+            birth_place: data.birthPlace,
+            personality_traits: data.personalityTraits,
+            life_goals: data.lifeGoals,
+            additional_info: data.additionalInfo
+          });
+
+        if (error) throw error;
+        
+        setHasQuestionnaire(true);
+        setAppState('dashboard');
+      } catch (error: any) {
+        console.error('Error saving questionnaire:', error);
+      }
+    } else {
+      // User not authenticated, go to auth
+      setAppState('auth');
+    }
   };
 
   const handleSignOut = async () => {
     console.log('Signing out...');
     await supabase.auth.signOut();
     setHasQuestionnaire(false);
+    setQuestionnaireData(null);
     setAppState('landing');
   };
 
-  // New flow: Always start with questionnaire for non-authenticated users
   const handleStartJourney = () => {
     console.log('Starting journey - going to questionnaire first');
     if (user) {
-      // If user is already authenticated, check if they have questionnaire
       if (hasQuestionnaire) {
         setAppState('dashboard');
       } else {
         setAppState('questionnaire');
       }
     } else {
-      // Non-authenticated users start with questionnaire
       setAppState('questionnaire');
     }
   };
 
-  // After questionnaire, redirect to auth if not authenticated
-  const handleQuestionnaireCompleteOrNext = () => {
-    if (user) {
-      // User is authenticated, complete questionnaire and go to dashboard
-      handleQuestionnaireComplete();
-    } else {
-      // User not authenticated, go to auth after questionnaire
-      console.log('Questionnaire attempted without auth - redirecting to signup');
-      setAppState('auth');
+  const handleAuthSuccessWithQuestionnaire = async () => {
+    // User just created account, save the questionnaire data if we have it
+    if (questionnaireData && user) {
+      try {
+        const { error } = await supabase
+          .from('astrology_questionnaires')
+          .insert({
+            user_id: user.id,
+            birth_date: questionnaireData.birthDate,
+            birth_time: questionnaireData.birthTime,
+            birth_place: questionnaireData.birthPlace,
+            personality_traits: questionnaireData.personalityTraits,
+            life_goals: questionnaireData.lifeGoals,
+            additional_info: questionnaireData.additionalInfo
+          });
+
+        if (error) throw error;
+        
+        setHasQuestionnaire(true);
+        setQuestionnaireData(null);
+      } catch (error: any) {
+        console.error('Error saving questionnaire after auth:', error);
+      }
     }
+    handleAuthSuccess();
   };
 
   console.log('Current app state:', appState, 'User:', user?.email, 'Has questionnaire:', hasQuestionnaire);
@@ -127,7 +167,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      <LanguageToggle />
+      <div className="flex justify-between items-start p-4">
+        <LanguageToggle />
+        {!user && appState === 'landing' && (
+          <LoginButton onAuthSuccess={handleAuthSuccess} />
+        )}
+      </div>
       
       {appState === 'landing' && (
         <>
@@ -140,7 +185,7 @@ const Index = () => {
       {appState === 'questionnaire' && (
         <div className="min-h-screen flex items-center justify-center p-4">
           <div className="w-full max-w-2xl">
-            <QuestionnaireForm onComplete={handleQuestionnaireCompleteOrNext} />
+            <QuestionnaireForm onComplete={handleQuestionnaireComplete} />
             <div className="text-center mt-4">
               <button
                 onClick={() => setAppState('landing')}
@@ -156,7 +201,7 @@ const Index = () => {
       {appState === 'auth' && (
         <div className="min-h-screen flex items-center justify-center p-4">
           <div className="w-full max-w-md">
-            <AuthForm onAuthSuccess={handleAuthSuccess} />
+            <AuthForm onAuthSuccess={handleAuthSuccessWithQuestionnaire} />
             <div className="text-center mt-4">
               <button
                 onClick={() => setAppState('landing')}
