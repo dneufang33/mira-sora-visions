@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Volume2, Clock, CheckCircle, Play } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import PDFGenerator from './PDFGenerator';
 
 interface DashboardProps {
   user: any;
@@ -11,11 +13,13 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ user, onSignOut }: DashboardProps) => {
+  const { t } = useTranslation();
   const [questionnaires, setQuestionnaires] = useState<any[]>([]);
   const [readings, setReadings] = useState<any[]>([]);
   const [audioReadings, setAudioReadings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -113,6 +117,11 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
     });
   };
 
+  const handlePDFExport = (readingId: string) => {
+    setExportingPDF(readingId);
+    setTimeout(() => setExportingPDF(null), 2000); // Reset after 2 seconds
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -128,27 +137,27 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-serif text-white mb-2">
-              Welcome back, {user.user_metadata?.full_name || user.email}
+              {t('dashboard.welcome')}, {user.user_metadata?.full_name || user.email}
             </h1>
-            <p className="text-purple-200">Your cosmic journey awaits</p>
+            <p className="text-purple-200">{t('dashboard.cosmicJourney')}</p>
           </div>
           <Button 
             onClick={onSignOut}
             variant="outline"
             className="border-purple-400 text-purple-200 hover:bg-purple-500/20"
           >
-            Sign Out
+            {t('dashboard.signOut')}
           </Button>
         </div>
 
         {/* Free Audio Generation Notice */}
         <Card className="mb-8 bg-green-500/10 backdrop-blur-sm border-green-500/30">
           <CardHeader>
-            <CardTitle className="text-green-300">🎉 Free Voice Readings by Mira</CardTitle>
+            <CardTitle className="text-green-300">{t('dashboard.freeAudioTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-green-200">
-              Get your personalized astrology readings narrated by Mira, your AI astral guide! Click "Generate Voice Reading" to hear your cosmic guidance.
+              {t('dashboard.freeAudioDescription')}
             </p>
           </CardContent>
         </Card>
@@ -159,10 +168,10 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
                 <Sparkles className="w-5 h-5" />
-                Your Cosmic Profiles
+                {t('dashboard.cosmicProfiles')}
               </CardTitle>
               <CardDescription className="text-purple-200">
-                Astrology questionnaires and generated readings
+                {t('dashboard.cosmicProfilesDescription')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -173,7 +182,7 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <p className="text-white font-medium">
-                          Born: {new Date(questionnaire.birth_date).toLocaleDateString()}
+                          {t('dashboard.bornOn')} {new Date(questionnaire.birth_date).toLocaleDateString()}
                         </p>
                         <p className="text-purple-300 text-sm">
                           {questionnaire.birth_place}
@@ -186,7 +195,7 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
                           size="sm"
                           className="bg-gradient-to-r from-purple-600 to-pink-600"
                         >
-                          {generating ? 'Generating...' : 'Generate Reading'}
+                          {generating ? t('dashboard.generating') : t('dashboard.generateReading')}
                         </Button>
                       )}
                     </div>
@@ -194,7 +203,7 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
                       <div className="mt-2 p-2 bg-green-500/10 border border-green-500/30 rounded">
                         <p className="text-green-300 text-sm flex items-center gap-1">
                           <CheckCircle className="w-4 h-4" />
-                          Reading generated
+                          {t('dashboard.readingGenerated')}
                         </p>
                       </div>
                     )}
@@ -203,7 +212,7 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
               })}
               {questionnaires.length === 0 && (
                 <p className="text-purple-300 text-center py-4">
-                  No cosmic profiles yet. Create your first questionnaire!
+                  {t('dashboard.noProfiles')}
                 </p>
               )}
             </CardContent>
@@ -214,10 +223,10 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
                 <Volume2 className="w-5 h-5" />
-                Your Voice Readings
+                {t('dashboard.voiceReadings')}
               </CardTitle>
               <CardDescription className="text-purple-200">
-                AI-narrated astrology readings by Mira
+                {t('dashboard.voiceReadingsDescription')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -228,13 +237,18 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <p className="text-white font-medium">
-                          Reading from {new Date(reading.created_at).toLocaleDateString()}
+                          {t('dashboard.readingFrom')} {new Date(reading.created_at).toLocaleDateString()}
                         </p>
                         <p className="text-purple-300 text-sm mt-1 line-clamp-2">
                           {reading.generated_text.substring(0, 100)}...
                         </p>
                       </div>
-                      <div className="ml-4">
+                      <div className="ml-4 flex flex-col gap-2">
+                        <PDFGenerator
+                          reading={reading}
+                          disabled={exportingPDF === reading.id}
+                          onExport={() => handlePDFExport(reading.id)}
+                        />
                         {!audio && (
                           <Button
                             onClick={() => generateAudio(reading.id)}
@@ -242,7 +256,7 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
                             size="sm"
                             className="bg-gradient-to-r from-blue-600 to-purple-600"
                           >
-                            {generating ? 'Creating...' : 'Generate Voice Reading'}
+                            {generating ? t('dashboard.creating') : t('dashboard.generateVoiceReading')}
                           </Button>
                         )}
                         {audio && audio.status === 'processing' && (
@@ -253,7 +267,7 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
                             className="border-yellow-500 text-yellow-300"
                           >
                             <Clock className="w-4 h-4 mr-1" />
-                            Processing...
+                            {t('dashboard.processing')}
                           </Button>
                         )}
                         {audio && audio.status === 'completed' && audio.audio_url && (
@@ -263,7 +277,7 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
                             className="bg-gradient-to-r from-green-600 to-blue-600"
                           >
                             <Play className="w-4 h-4 mr-1" />
-                            Play Reading
+                            {t('dashboard.playReading')}
                           </Button>
                         )}
                       </div>
@@ -286,7 +300,7 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
               })}
               {readings.length === 0 && (
                 <p className="text-purple-300 text-center py-4">
-                  No readings yet. Generate your first reading to create voice narrations!
+                  {t('dashboard.noReadings')}
                 </p>
               )}
             </CardContent>

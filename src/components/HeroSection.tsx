@@ -1,12 +1,15 @@
 
 import { Button } from "@/components/ui/button";
 import { Star, Moon } from "lucide-react";
+import { useTranslation } from 'react-i18next';
 
 interface HeroSectionProps {
   onStartJourney: () => void;
 }
 
 const HeroSection = ({ onStartJourney }: HeroSectionProps) => {
+  const { t } = useTranslation();
+
   return (
     <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden">
       {/* Mystical background elements */}
@@ -47,28 +50,28 @@ const HeroSection = ({ onStartJourney }: HeroSectionProps) => {
           {/* Mira's Personal Introduction */}
           <div className="max-w-3xl mx-auto mb-8">
             <p className="text-xl md:text-2xl text-purple-200 font-light tracking-wide mb-4 leading-relaxed">
-              Welcome, beautiful soul. I'm Mira, and I'm here to be your guide through the cosmic tapestry that shapes your unique journey. 
+              {t('hero.welcome')}
             </p>
             <p className="text-lg md:text-xl text-purple-300 font-light mb-4 leading-relaxed">
-              For centuries, the stars have whispered secrets about who we are and who we're meant to become. I've spent my existence learning these ancient languages—the dance of planets, the wisdom of zodiac signs, and the sacred geometry that connects us all to something greater.
+              {t('hero.description1')}
             </p>
             <p className="text-lg md:text-xl text-purple-300 font-light mb-6 leading-relaxed">
-              Whether you're seeking clarity in love, purpose in your career, or simply a deeper understanding of your authentic self, I'm here to illuminate the path that's uniquely yours. Together, we'll explore the celestial blueprint written in the moment of your birth and discover the extraordinary potential that lives within you.
+              {t('hero.description2')}
             </p>
             <p className="text-sm text-purple-400/70 italic">
-              Mira is a virtual astrology guide powered by AI.
+              {t('hero.disclaimer')}
             </p>
           </div>
         </div>
 
-        {/* CTA Buttons */}
+        {/* CTA Buttons - ALL lead to questionnaire */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Button 
             size="lg" 
             onClick={onStartJourney}
             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 rounded-full font-medium tracking-wide transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-purple-500/25"
           >
-            Discover Your Cosmic Blueprint
+            {t('hero.primaryButton')}
           </Button>
           <Button 
             variant="outline" 
@@ -76,15 +79,14 @@ const HeroSection = ({ onStartJourney }: HeroSectionProps) => {
             onClick={onStartJourney}
             className="border-purple-400 text-purple-200 hover:bg-purple-500/20 px-8 py-3 rounded-full font-medium tracking-wide transition-all duration-300"
           >
-            Start Your Journey
+            {t('hero.secondaryButton')}
           </Button>
         </div>
 
         {/* Mystical quote */}
         <div className="mt-16 max-w-2xl mx-auto">
           <blockquote className="text-purple-300 italic text-lg font-light">
-            "In the dance of planets and the whisper of stars, 
-            lies the map to your soul's greatest potential."
+            "{t('hero.quote')}"
           </blockquote>
         </div>
       </div>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import HeroSection from "@/components/HeroSection";
@@ -7,6 +6,7 @@ import PricingSection from "@/components/PricingSection";
 import AuthForm from "@/components/AuthForm";
 import QuestionnaireForm from "@/components/QuestionnaireForm";
 import Dashboard from "@/components/Dashboard";
+import LanguageToggle from "@/components/LanguageToggle";
 
 type AppState = 'loading' | 'landing' | 'questionnaire' | 'auth' | 'dashboard';
 
@@ -127,11 +127,13 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      <LanguageToggle />
+      
       {appState === 'landing' && (
         <>
           <HeroSection onStartJourney={handleStartJourney} />
           <ZodiacWheel />
-          <PricingSection />
+          <PricingSection onStartJourney={handleStartJourney} />
         </>
       )}
 
