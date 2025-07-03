@@ -1,7 +1,6 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://cdn.skypack.dev/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,46 +15,53 @@ serve(async (req) => {
   try {
     const { readingId } = await req.json();
     
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { persistSession: false } }
-    );
-
     const authHeader = req.headers.get('Authorization')!;
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabaseClient.auth.getUser(token);
     
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
+    // Get user directly from Supabase Auth API
+    const userResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/auth/v1/user`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+      },
+    });
 
-    // Get reading data
-    const { data: reading, error: readingError } = await supabaseClient
-      .from('readings')
-      .select('*')
-      .eq('id', readingId)
-      .eq('user_id', user.id)
-      .single();
+    if (!userResponse.ok) throw new Error("Authentication failed");
+    const userData = await userResponse.json();
+    const user = userData;
+    if (!user) throw new Error('User not authenticated');
 
-    if (readingError || !reading) {
-      throw new Error('Reading not found');
-    }
+    // Get reading data via REST API
+    const readingResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/readings?id=eq.${readingId}&user_id=eq.${user.id}&select=*`, {
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+      },
+    });
 
-    // Create audio record
-    const { data: audio, error: audioError } = await supabaseClient
-      .from('audio_readings')
-      .insert({
+    const readingData = await readingResponse.json();
+    const reading = readingData[0];
+    if (!reading) throw new Error('Reading not found');
+
+    // Create audio record via REST API
+    const audioResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/audio_readings`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+      },
+      body: JSON.stringify({
         user_id: user.id,
         reading_id: readingId,
         status: 'processing',
-      })
-      .select()
-      .single();
+      }),
+    });
 
-    if (audioError) {
-      throw new Error('Failed to create audio record');
-    }
+    const audioData = await audioResponse.json();
+    const audio = audioData[0];
+    if (!audio) throw new Error('Failed to create audio record');
 
     // Call DeepGram API to generate speech
     const deepgramResponse = await fetch('https://api.deepgram.com/v1/speak?model=aura-asteria-en', {
@@ -78,42 +84,44 @@ serve(async (req) => {
     const audioBuffer = await deepgramResponse.arrayBuffer();
     const audioBlob = new Uint8Array(audioBuffer);
 
-    // Upload audio to Supabase Storage
+    // Upload audio to Supabase Storage via REST API
     const fileName = `${audio.id}.mp3`;
-    const { data: uploadData, error: uploadError } = await supabaseClient.storage
-      .from('audio-files')
-      .upload(fileName, audioBlob, {
-        contentType: 'audio/mpeg',
-        upsert: true,
-      });
+    const uploadResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio-files/${fileName}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "Content-Type": "audio/mpeg",
+      },
+      body: audioBlob,
+    });
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('Upload error:', errorText);
       throw new Error('Failed to upload audio file');
     }
 
     // Get public URL for the audio file
-    const { data: urlData } = supabaseClient.storage
-      .from('audio-files')
-      .getPublicUrl(fileName);
+    const publicUrl = `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio-files/${fileName}`;
 
     // Update audio record with file URL and completion status
-    const { error: updateError } = await supabaseClient
-      .from('audio_readings')
-      .update({
-        audio_url: urlData.publicUrl,
+    await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/audio_readings?id=eq.${audio.id}`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        audio_url: publicUrl,
         status: 'completed',
         completed_at: new Date().toISOString(),
-      })
-      .eq('id', audio.id);
-
-    if (updateError) {
-      console.error('Failed to update audio record:', updateError);
-    }
+      }),
+    });
 
     return new Response(JSON.stringify({ 
       audio,
-      audioUrl: urlData.publicUrl,
+      audioUrl: publicUrl,
       status: 'completed' 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

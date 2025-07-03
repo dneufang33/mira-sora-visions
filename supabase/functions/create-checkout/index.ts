@@ -1,6 +1,5 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://cdn.skypack.dev/stripe@14.21.0";
-import { createClient } from "https://cdn.skypack.dev/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,28 +11,37 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-  );
-
   try {
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
+    
+    // Get user directly from Supabase Auth API
+    const userResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/auth/v1/user`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "apikey": Deno.env.get("SUPABASE_ANON_KEY") || "",
+      },
+    });
+
+    if (!userResponse.ok) throw new Error("Authentication failed");
+    const userData = await userResponse.json();
+    const user = userData;
     if (!user?.email) throw new Error("User not authenticated");
 
     const { tier } = await req.json();
     
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { 
-      apiVersion: "2023-10-16" 
+    // Get existing customer from Stripe
+    const customersResponse = await fetch(`https://api.stripe.com/v1/customers?email=${encodeURIComponent(user.email)}&limit=1`, {
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("STRIPE_SECRET_KEY")}`,
+      },
     });
 
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    const customersData = await customersResponse.json();
+    const customers = customersData.data || [];
     let customerId;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
+    if (customers.length > 0) {
+      customerId = customers[0].id;
     }
 
     let priceAmount, planName;
@@ -55,9 +63,11 @@ serve(async (req) => {
         throw new Error('Invalid subscription tier');
     }
 
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      customer_email: customerId ? undefined : user.email,
+    // Create Stripe checkout session
+    const sessionData = {
+      mode: "subscription",
+      success_url: `${req.headers.get("origin")}/dashboard?payment=success`,
+      cancel_url: `${req.headers.get("origin")}/dashboard?payment=canceled`,
       line_items: [
         {
           price_data: {
@@ -69,14 +79,28 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: "subscription",
-      success_url: `${req.headers.get("origin")}/dashboard?payment=success`,
-      cancel_url: `${req.headers.get("origin")}/dashboard?payment=canceled`,
       metadata: {
         user_id: user.id,
         tier: tier,
       },
+    };
+
+    if (customerId) {
+      sessionData.customer = customerId;
+    } else {
+      sessionData.customer_email = user.email;
+    }
+
+    const sessionResponse = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("STRIPE_SECRET_KEY")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams(sessionData).toString(),
     });
+
+    const session = await sessionResponse.json();
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

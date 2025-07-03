@@ -1,6 +1,5 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://cdn.skypack.dev/stripe@14.21.0";
-import { createClient } from "https://cdn.skypack.dev/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,36 +11,54 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    { auth: { persistSession: false } }
-  );
-
   try {
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
-    if (!user?.email) throw new Error("User not authenticated");
-
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { 
-      apiVersion: "2023-10-16" 
+    
+    // Get user directly from Supabase Auth API
+    const userResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/auth/v1/user`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "apikey": Deno.env.get("SUPABASE_ANON_KEY") || "",
+      },
     });
 
+    if (!userResponse.ok) throw new Error("Authentication failed");
+    const userData = await userResponse.json();
+    const user = userData;
+    if (!user?.email) throw new Error("User not authenticated");
+
     // Find the Stripe customer
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    if (customers.data.length === 0) {
+    const customersResponse = await fetch(`https://api.stripe.com/v1/customers?email=${encodeURIComponent(user.email)}&limit=1`, {
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("STRIPE_SECRET_KEY")}`,
+      },
+    });
+
+    const customersData = await customersResponse.json();
+    const customers = customersData.data || [];
+    if (customers.length === 0) {
       throw new Error("No Stripe customer found for this user");
     }
 
-    const customerId = customers.data[0].id;
+    const customerId = customers[0].id;
 
     // Create a portal session
-    const portalSession = await stripe.billingPortal.sessions.create({
+    const portalData = {
       customer: customerId,
       return_url: `${req.headers.get("origin")}/dashboard`,
+    };
+
+    const portalResponse = await fetch("https://api.stripe.com/v1/billing_portal/sessions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("STRIPE_SECRET_KEY")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams(portalData).toString(),
     });
+
+    const portalSession = await portalResponse.json();
 
     // Log the cancellation access for notification purposes
     console.log(`User ${user.email} accessed subscription cancellation portal`);
