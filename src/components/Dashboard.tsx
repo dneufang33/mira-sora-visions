@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import PDFGenerator from './PDFGenerator';
 import PaymentGate from './PaymentGate';
 import CosmicProducts from './CosmicProducts';
+import SubscriptionManager from './SubscriptionManager';
 import { useSubscription } from '@/hooks/useSubscription';
 import jsPDF from 'jspdf';
 
@@ -281,6 +282,14 @@ const Dashboard = ({ user, onSignOut }: DashboardProps) => {
             )}
           </CardContent>
         </Card>
+
+        {/* Subscription Manager */}
+        <div className="mb-8">
+          <SubscriptionManager 
+            subscription={subscription} 
+            onCancel={() => checkSubscription()} 
+          />
+        </div>
 
         {/* New Cosmic Products Section */}
         <div className="mb-12">

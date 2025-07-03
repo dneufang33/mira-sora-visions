@@ -37,8 +37,24 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    const priceAmount = tier === 'written' ? 999 : 1999; // €9.99 or €19.99 in cents
-    const planName = tier === 'written' ? 'Written Readings' : 'Spoken Readings';
+    let priceAmount, planName;
+    
+    switch (tier) {
+      case 'written':
+        priceAmount = 999; // €9.99
+        planName = 'Written Readings';
+        break;
+      case 'spoken':
+        priceAmount = 1999; // €19.99
+        planName = 'Spoken Readings';
+        break;
+      case 'lunar':
+        priceAmount = 1444; // €14.44
+        planName = 'Lunar Cycle Monthly';
+        break;
+      default:
+        throw new Error('Invalid subscription tier');
+    }
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,

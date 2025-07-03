@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Download, Heart, Calendar, Users, Star, Sparkles } from 'lucide-react';
+import { FileText, Download, Heart, Calendar, Users, Star, Sparkles, Volume2, CreditCard } from 'lucide-react';
 
 interface CosmicProductsProps {
   user: any;
@@ -44,6 +44,36 @@ const products = [
     price: '€14.44',
     icon: Users,
     color: 'from-indigo-600 to-purple-600'
+  }
+];
+
+const subscriptionPlans = [
+  {
+    id: 'written-readings',
+    title: 'Written Readings',
+    description: 'Get 4 personalized PDF astrology readings every month',
+    price: '€9.99',
+    icon: FileText,
+    color: 'from-purple-600 to-pink-600',
+    tier: 'written'
+  },
+  {
+    id: 'spoken-readings',
+    title: 'Voice + Written Readings',
+    description: 'Get 4 personalized PDF readings + voice narration by Mira every month',
+    price: '€19.99',
+    icon: Volume2,
+    color: 'from-blue-600 to-purple-600',
+    tier: 'spoken'
+  },
+  {
+    id: 'lunar-cycle-subscription',
+    title: 'Lunar Cycle Monthly',
+    description: 'Get 4 personalized lunar cycle PDFs every month, aligned with moon phases',
+    price: '€14.44',
+    icon: Calendar,
+    color: 'from-indigo-600 to-purple-600',
+    tier: 'lunar'
   }
 ];
 
@@ -106,6 +136,33 @@ const CosmicProducts = ({ user }: CosmicProductsProps) => {
     }
   };
 
+  const handleSubscriptionCheckout = async (tier: string) => {
+    setPurchasing(tier);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { tier }
+      });
+
+      if (error) throw error;
+
+      window.open(data.url, '_blank');
+      
+      toast({
+        title: "Redirecting to subscription",
+        description: "Opening secure checkout for your subscription...",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error creating subscription",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setPurchasing(null);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -119,6 +176,63 @@ const CosmicProducts = ({ user }: CosmicProductsProps) => {
         <p className="text-purple-300 max-w-4xl mx-auto">
           Alongside our beloved Voice Reading and PDF Horoscope, we're thrilled to unveil a constellation of new cosmic treasures — crafted for the curious, the soulful, and the starry-eyed.
         </p>
+      </div>
+
+      {/* Subscription Plans Section */}
+      <div className="space-y-6">
+        <h3 className="text-2xl font-serif text-white text-center">
+          🔮 Monthly Subscription Plans — Cancel Anytime 🔮
+        </h3>
+        <p className="text-center text-purple-200 mb-6">
+          All subscriptions can be cancelled monthly with no commitment!
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {subscriptionPlans.map((plan) => {
+            const IconComponent = plan.icon;
+            return (
+              <Card key={plan.id} className="bg-white/10 backdrop-blur-sm border-purple-500/30 relative overflow-hidden">
+                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${plan.color} opacity-20 rounded-full -translate-y-16 translate-x-16`}></div>
+                
+                <CardHeader className="relative">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <IconComponent className="w-6 h-6 text-purple-300" />
+                      <Badge variant="secondary" className="bg-green-500/20 text-green-200">
+                        Monthly
+                      </Badge>
+                    </div>
+                    <div className="text-2xl font-bold text-white">
+                      {plan.price}
+                    </div>
+                  </div>
+                  <CardTitle className="text-white text-lg">
+                    {plan.title}
+                  </CardTitle>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  <CardDescription className="text-purple-200 leading-relaxed">
+                    {plan.description}
+                  </CardDescription>
+                  
+                  <div className="flex items-center gap-2 text-sm text-purple-300">
+                    <CreditCard className="w-4 h-4" />
+                    <span>Cancel anytime - no commitment</span>
+                  </div>
+                  
+                  <Button
+                    onClick={() => handleSubscriptionCheckout(plan.tier)}
+                    disabled={purchasing === plan.tier}
+                    className={`w-full bg-gradient-to-r ${plan.color} hover:opacity-90 transition-opacity`}
+                  >
+                    {purchasing === plan.tier ? 'Processing...' : `Subscribe to ${plan.title}`}
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
 
       {/* New Products Section */}
