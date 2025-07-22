@@ -25,12 +25,15 @@ const AuthForm = ({ onAuthSuccess }: AuthFormProps) => {
 
     try {
       console.log('Auth attempt:', isLogin ? 'login' : 'signup', email);
+      console.log('Supabase URL:', 'https://khqhuzmkmoymwrpfnrth.supabase.co');
       
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        console.log('Attempting login...');
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
+        console.log('Login response:', { data, error });
         if (error) throw error;
         console.log('Login successful');
         toast({
@@ -38,7 +41,8 @@ const AuthForm = ({ onAuthSuccess }: AuthFormProps) => {
           description: "You have successfully signed in.",
         });
       } else {
-        const { error } = await supabase.auth.signUp({
+        console.log('Attempting signup...');
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -48,6 +52,7 @@ const AuthForm = ({ onAuthSuccess }: AuthFormProps) => {
             emailRedirectTo: `${window.location.origin}/`,
           },
         });
+        console.log('Signup response:', { data, error });
         if (error) throw error;
         console.log('Signup successful');
         toast({
@@ -58,9 +63,21 @@ const AuthForm = ({ onAuthSuccess }: AuthFormProps) => {
       onAuthSuccess();
     } catch (error: any) {
       console.error('Auth error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+        cause: error.cause,
+        stack: error.stack
+      });
+      
+      let errorMessage = error.message;
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        errorMessage = 'Network connection error. Please check your internet connection and try again.';
+      }
+      
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Authentication Error",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
